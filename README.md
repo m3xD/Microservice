@@ -52,3 +52,56 @@
   *   Autmated test: Consumer-driven contract test(service đạt được mong muốn của client), consumer-side contract test(client có thể liên lạc với service), service component test.
   *   Thực hiện các pattern obser và discovery tối ưu: Externalized Configuration pattern.
   *   Security.
+
+## 2. Decomposition pattern:
+### 2.1 By business capability:
+- Phân chia theo năng lực, nghiệp vụ, những nhiệm vụ của công ty.
+- Lợi ích của việc phân chia theo pattern này:
+  * Phân chia các service sẽ ổn định nếu nghiệp vụ của công ty ổn định.
+  * Có thể phân chia thành nhiều team độc lập với từng service.
+  * Các service có liên hệ ít (loosely coupled).
+- Ví dụ:
+  * Công ty bán hàng thì thường có các nghiệp vụ quản lý hàng hóa, đơn hàng, vận chuyển,...
+  * Công ty bảo hiểm quản lý các hợp đồng bảo hiểm, các gói bảo hiểm,...
+  * Công ty an ninh mạng quản lý servers, các đối tượng cần bảo vệ,....
+### 2.2. Subdomain:
+- Định nghĩa bussiness thành một domain lớn.
+- Chia domain thành các subdomain, các subdomain cũng gần giống với business capability.
+- DDD gọi scope của các subdomain là bounded context, bounded context xác định được tập các service(s).
+- Nhược điểm:
+  * Có thể phân rã ra thành rất nhiều subdomain, tăng nhiều service rời rạc.
+### 2.3. Transaction:
+- Trong hệ phân tán, các transaction cần gọi 1 hay nhiều service để hoàn thành. Để giảm thiểu độ trễ, chúng ta gọi các service theo một transaction.
+- Lợi ích:
+  * Giảm thiểu thời gian chờ đợi.
+  * Dữ liệu nhất quán.
+- Nhược điểm:
+  * Có thể tạo thành một ứng dụng nguyên khối phân tán.
+  * Phức tạp hơn.
+### 2.4. Team:
+- Chia các service ra để cho từng team xây dựng và phát triển.
+- Các team đều phải đảm bảo các qui tắc:
+  * Nhỏ, chỉ từ 5-9 người.
+  * Độc lập với các team khác.
+- Lợi ích:
+  * Các team hoàn toàn tự chủ mà không cần chờ đợi hay phụ thuộc vào team khác.
+  * Từ một code base phức tạp như ứng dụng nguyên khối có thể phân rã thành các code base dễ hiểu hơn.
+- Nhược điểm:
+  * Khi phát triển các tính năng mới thì yêu cầu có nhiều team hơn hoặc các team phải tách ra độc lập.
+### 2.5. Funtional:
+- Phân chia hệ thống theo chức năng theo kiểu service hoặc module.
+- Mỗi service chỉ đảm nhiệm duy nhất 1 chức năng.
+- Ưu điểm:
+  * Dễ dàng phân chia khi nghiệp vụ business nhỏ
+- Nhược điểm:
+  * Không phân chia service rõ ràng khiến cho service có thể xử lý hơn một chức năng.
+
+### 3. Inter-process communication:
+### 3.1. Communication style:
+- Được phân loại thành 2 chiều khác nhau.
+- Loại 1:
+  * One-to-one: từng client request chỉ được xử lý bởi một service.
+  * One-to-many: từng client request được xử lý bởi nhiều service.
+- Loại 2:
+  * Synchronous: client gửi request và chờ đợi nhận được response và có thể bị block.
+  * Asynchronous: client không block, gửi request và response có thể không cần gửi ngay.
