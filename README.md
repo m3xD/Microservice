@@ -105,3 +105,83 @@
 - Loại 2:
   * Synchronous: client gửi request và chờ đợi nhận được response và có thể bị block.
   * Asynchronous: client không block, gửi request và response có thể không cần gửi ngay.
+#### Có thể được so sánh bởi bảng sau:
+|          | One-to-one | One-to-many | 
+| ------------- | ------------- | --------- |
+| Synchronous  | Request/Response  | x |
+| Asynchronous | Asynchronous reqeust/response or One-way notification  | Publish/subscribe or Publish/async responses |
+- Các term có thể được giải thích như sau:
+  * Request/Response: Client gửi request lên service và chờ response, trong quá trình đó thì có thể client bị block.
+  * Asynchronous reqeust/response: Client gửi request lên service và service không cần trả lời ngay, client không bị block.
+  * One-way notification: Client gửi request lên service và không cần nhận phản hồi từ service.
+  * Publish/subscribe: Client gửi nhiều request, được đọc bởi một hay nhiều services.
+  * Publish/async responses: Client gửi request và chờ khoảng thời gian để nhận phản hồi từ services mong muốn.
+### 3.2. Synchronous:
+#### 3.2.1. Sử dụng REST:
+- Ưu điểm:
+  * Đơn giản và dễ làm quen.
+  * Có thể kiểm thử HTTP API thông qua trình duyệt, postman,...
+  * Hỗ trợ kiểu giao tiếp request/response.
+  * Tương thích đa số firewall hiện thời.
+  * Hệ thống tương đối đơn giản do không có trung gian để thực hiện request/response.
+- Nhược điểm:
+  * Chỉ support kiểu giao tiếp request/response.
+  * Giảm khả năng sẵn có do không có trung gian đứng ra để buffer request, dẫn tới có thể mất gói tin khi vận chuyển qua đường truyền mạng.
+  * Client phải biết được URL của service instance.
+  * Lấy nhiều dữ liệu từ nhiều service khác nhau là bài toán khó.
+  * Khó trong việc đặt tên các operation có cùng chức năng nhưng khác mục đích (POST).
+#### 3.2.2. Sử dụng gRPC
+- Sử dụng binary message nên có hiệu năng cao, nhỏ, hiệu quả.
+- Sử dụng HTTP/2.
+- Ưu điểm:
+  * Khắc phục yếu điểm của REST khi có thể thiết kế nhiều API cùng operation nhưng khác mục đích.
+  * Hiệu năng tốt, đặc biệt là khi trao đổi các msg có dung lượng lớn.
+  * Streaming ở cả client và server.
+  * Client hoặc server đều có thể viết bằng các ngôn ngữ lập trình khác nhau mà vẫn có thể gửi request/response.
+- Nhược điểm:
+  * JavaSciprt client phải thực hiện nhiều thao tác hơn để xử lý msg của gRPC thay vì là REST.
+  * Những firewall cũ có thể không tương thích với HTTP/2.
+### 3.3. Asynchronous
+#### 3.3.1. Message
+- Các services sẽ contact với nhau thông qua message.
+- Sẽ có thành phần trung gian là message-broker để trao đổi message.
+- Một message sẽ bao gồm phần header và phần body:
+  * Header: tập hợp các cặp name:value để mô tả dữ liệu cần gửi.
+  * Body: là dữ liệu cần, có thể ở dạng text hoặc binary.
+- Một số kiểu message:
+  * Document: Chỉ chứa dữ liệu cần gửi.
+  * Command: chứa operation và parameter để thực hiện hành động nào đó.
+  * Event: Các event có thể xảy ra ở phía sender.
+#### 3.3.2. Channel:
+- Message được trao đổi thông qua channel.
+- Mỗi bên sender hay reciever đều có sending port và recieve port để thực hiện push hay pull dữ liệu từ message channel.
+- Có 2 kiểu channel:
+  * Point-to-point: vận chuyển message đến đúng một consumer đang đọc từ message channel. Command message thường sử dụng loại channel này. Thường là style one-to-one communication.
+  * Publish-subcribe: vận chuyển từng message đến từng consumers đang đọc từ message channel. Event message thường sử dụng loại channel này. Thường là style one-to-many communication.
+#### 3.3.3. Xây dựng communication style dựa trên message:
+##### 3.3.3.1. Request/Response and Async Request/Response:
+- Sự khác biệt chính của 2 kiểu communication này là:
+  * Request/Response có thể client bị block để chờ response.
+  * Async Request/Response không chờ response, client không bị block.
+- Message channel sử dụng ở đây là point-to-point.
+- Bằng cách exchange các message, chỉ rõ command cần thực hiện và các tham số cần truyền vào đến request channel của service, service xử lý xong thì gửi kết quả về response channel của client.
+- Client phải chỉ rõ location response channel bằng cách đính kèm thông tin location vào header của request và message id gửi đi, service xử lý thì đính kèm thêm **correlation id** để match response message với request nào bằng cách so sánh với message id.
+##### 3.3.3.2. One-way-notification:
+- Client chỉ gửi request đến point-to-point message channel và service lấy chúng xử lý mà không cần phản hồi lại.
+##### 3.3.3.3. Publish/subscribe:
+- Client publish message lên publish-subscribe channel và được đọc bởi các consumers.
+- Thường được sử dụng kiểu message là event, nhận biết sự thay đổi của domain objects.
+##### 3.3.3.4. Publish/Async response:
+- Kết hợp các thành phần publish/subscribe và request/response.
+- Client thực hiện publish message chỉ định rõ reply channel trong header rồi gửi tới publish/subscribe channel. Consumer thực hiện gửi response kèm theo **correlation id** để match với từng request.
+### 3.3.4. Message broker:
+- Sender sẽ thực hiển đẩy message vào message broker, message broker chuyển message tới receiver.
+- Lợi ích:
+  * Sender không cần biết location của receiver và các message vẫn được buffer cho đến khi được đọc bởi receiver.
+  * Loose coupling: client chỉ cần push request vào đúng message broker mà không cần biết tới service instance nào.
+  * Flexible: có thể trao đổi nhiều kiểu message khác nhau.
+  * Quá trình giao tiếp rõ ràng.
+- Nhược điểm:
+  * Có thể bị thắt cổ chai.
+  * Quá tải tại điểm nút.
+  * Hệ thống trở nên phức tạp hơn
