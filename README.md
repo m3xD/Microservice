@@ -185,3 +185,55 @@
   * Có thể bị thắt cổ chai.
   * Quá tải tại điểm nút.
   * Hệ thống trở nên phức tạp hơn
+
+## 4. API Gateway:
+### 4.1. Vấn đề cách gọi API ứng dụng monolithic sang microservice:
+()
+### 4.2. API Gateway pattern:
+- API Gateway là entry point cho các request ở ngoài môi trường mạng. Nó đảm nhiệm việc routing, API Compositing, một số edge function như authentication.
+#### 4.2.1. Tổng quan chức năng của API Gateway:
+- Request routing: khi nhận được request, API Gateway sẽ thực hiện đọc routing map để xác định service nào serve request đó.
+- API Composition: client chỉ gần gửi 1 request và API Gateway gọi đến các service cần thiết và gộp các kết quả lại để trả về cho client.
+- Protocol translation: hỗ trợ nhiều protocol khác nhau, có thể là REST hoặc gRPC.
+- Mỗi client lại có một API Gateway khác nhau do yêu cầu về lượng dữ liệu cần lấy là khác nhau.
+- Các edge function:
+  * Authen/Author: thực hiện xác thực/phân quyền user.
+  * Rate limiting: limit số request/s mà người dùng có thể thực hiện.
+  * Caching: giảm số lượng request bằng cách sử dụng cache.
+  * Metris collection: thực hiện phân tích số lượng request tới API nào đó.
+  * Request log.
+#### 4.2.2. API Gateway architecture:
+![api_gateway_arch](png/api-gateway-arch.png)
+- Có 2 layer chính:
+  * API layer: chứa các API của từng client.
+  * API gateway(common function): các function dùng chung của cả client.
+#### 4.2.3. Ownership model:
+![ownership](png/Ownership.png)
+- Các team sẽ tự đảm nhận API.
+- Team API Gateway sẽ đảm nhận common function.
+#### 4.2.4. Backend for frontend:
+![back_for_front](png/backend_for_frontend.png)
+- Giống với ownership model, nhưng giờ đây với mỗi API team sẽ giữ cả nhiệm vụ quản lý API Gateway.
+- Lợi ích:
+  * Tăng khả năng tin cậy do các API module độc lập với nhau.
+  * Có thể scale một cách độc lập.
+  * Giảm thời gian startup.
+- Nhược điểm:
+  * Duplicate code do API module nào cũng có common function nếu sử dụng tech stack khác nhau.
+### 4.3 Ưu và nhược điểm của API Gateway:
+- Ưu điểm:
+  * Đảm bảo tính chất đóng gói của ứng dụng, chỉ expose gateway cho người dùng sử dụng.
+  * Giảm round-trip giữa client với application.
+  * Giảm độ phức tạp của code.
+- Nhược điểm:
+  * API Gateway có thể trở thành điểm nghẽn.
+  * Thêm một thành phần cần phát triển.
+### 4.4. Implement API Gateway
+- Hiệu năng và khả năng scale:
+  * Key design: Synchronous hay asynchronous I/O.
+  * Synchronous I/O model: mỗi kết nối mạng là một thread. Điểm trừ là thread nặng nên có giới hạn.
+  * Asynchronous (nonblocking) I/O model: một vòng lặp thread sẽ xử lý các requests. Có thể scale vì không phụ thuộc vào số lượng thread nhưng code sẽ phức tạp hơn.
+- Sử dụng API Composition: bằng cách viết code một cách concurrent, rồi tổng hợp lại kết quả trả về cho client do các service gọi độc lập với nhau.
+- Handling partial failures: Chạy nhiều instances API Gateway ở sau load balancer hoặc sử dụng **Circuit breaker pattern** để dựa vào các request trước để xác định request hiện tại có nên thực hiện hay không.
+- Service discovery: xác định được location của instance service để invoke request của client.
+- Service invocation: API Gateway cần hỗ trợ nhiều giao thức giao tiếp với service.
