@@ -237,3 +237,44 @@
 - Handling partial failures: Chạy nhiều instances API Gateway ở sau load balancer hoặc sử dụng **Circuit breaker pattern** để dựa vào các request trước để xác định request hiện tại có nên thực hiện hay không.
 - Service discovery: xác định được location của instance service để invoke request của client.
 - Service invocation: API Gateway cần hỗ trợ nhiều giao thức giao tiếp với service.
+
+## 5. Data management:
+### 5.1. API compostition pattern: 
+- Có hai thành phần chính:
+  * API Composer: thực hiện request đến các service cần thiết để lấy dữ liệu và gộp các dữ liệu với nhau. API Composer có thể là client (web) hay là API Gateway và pattern Backends for frontends. 
+  * Provider service: service chứa dữ liệu cần trả về.
+![api_composer](png/api_composer_2.png)
+- Việc sử dụng pattern này bị ảnh hưởng bởi một số yếu tố như dữ liệu được phân chia như nào, API được expose như nào, thẩm quyền ra sao.
+- Các bước thực hiện bao gồm:
+  * Client gọi đến endpoint của API Composer, API Composer thực hiện operation query bằng cách gọi đến các endpoint của các provider services cần thiết.
+  * Các provider service trả về kết quả và API Composer sẽ thực hiện gộp các kết quả lại và trả về cho client.
+- Một số vấn đề của pattern:
+  * API Composer có thể là client(web), API Gateway hoặc là một service độc lập(ưu tiên cách này).
+  * API Composer nên implement operation query một cách concurrent do các lần lấy dữ liệu là độc lập với nhau
+- Ưu điểm:
+  * Rất đơn giản để hiểu và implement.
+- Nhược điểm:
+  * Tăng chi phí thực hiện: do thực hiện nhiều request lên các provider service sẽ tốn chi phí hơn là chỉ thực hiện 1 request giống với ứng dụng monolithic.
+  * Giảm tính sẵn sàng: availability operation liên quan đến số lượng services gửi mà API Composer gửi request đến. Càng nhiều service thì mức độ avaibility giảm xuống. Có một số giải pháp như sau:
+    * Lưu cache của các lần request để đảm bảo nếu có provider service nào đó offline thì vẫn có kết quả trả về.
+    * Hiển thị thiếu thông tin của service offline.
+  * Dữ liệu có thể không nhất quán giữa các service do các service có database là độc lập.
+### 5.2. CQRS pattern:
+- CQRS là cách nhân bản database để phục vụ 2 mục đích khác nhau là: (command-CUD) và query(R).
+- Tại sao lại sử dụng CQRS mà không phải API composition:
+  * Một số query không phù hợp để apply API composition. Một số complex query yêu cầu sort hay filter theo trường dữ liệu nào đó, nhưng các services có thể không có trường dữ liệu cần thiết để thao tác như đã đề cập ở trên, nếu apply API composition thì phải join nhiều bằng cùng một lúc, chi phí thực hiện rất tốn kém hoặc thực hiện tối ưu truy vấn bằng cách lọc dần ra các bản ghi theo điều kiện nhưng cũng gây traffic network.
+  * Một service lưu trữ dữ liệu không có nghĩa service ấy nên thực hiện query. Mỗi service chỉ nên đảm nhiệm một chức năng duy nhất, một số query yêu cầu có database hỗ trợ lưu trữ một số kiểu dữ liệu đặc biệt như geo,...
+- Cấu trúc của CQRS pattern:
+  * Phân tách data model và module thành 2 phần: commmand và queries:
+    * Phần command đảm nhiệm thực hiện các thao tác lên database như CUD.
+    * Phần query đảm hiện thực hiện truy vấn phức tạp.
+  * Data model bên query đảm bảo cho dữ liệu luôn up-to-date bằng cách đồng bộ với data model bên command, subscribe các event được publish bởi phía command.
+- Service không sử dụng pattern CQRS:
+  * Các operation chủ yếu được implement bằng cách các data model được map tới database.
+  * Một số query thì được bypass để đảm bảo hiệu năng.
+  * Một database duy nhất hỗ trợ đầy đủ CRUD.
+- Service có sử dụng pattern CQRS:
+  * Bên phía command sẽ đảm nhận CUD operation và map tới database của bên phía command. Ngoài ra bên command cũng xử lý một số query đơn giản như query theo primary key, không join nhiều bảng,.....
+  * Bên command sẽ thực hiện publish các event bên phía query để đảm bảo dữ liệu được up-to-date.
+  * Phía query thực hiện các queries phức tạp hơn. Database phục vụ cho queries có thể có một số đặc điểm đặc thù để phù hợp cho query với một số kiểu dữ liệu.
+  * Phía query đồng thời cũng nhận các event của bên phía command và thực hiện update.
