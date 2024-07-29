@@ -264,6 +264,7 @@
 - Tại sao lại sử dụng CQRS mà không phải API composition:
   * Một số query không phù hợp để apply API composition. Một số complex query yêu cầu sort hay filter theo trường dữ liệu nào đó, nhưng các services có thể không có trường dữ liệu cần thiết để thao tác như đã đề cập ở trên, nếu apply API composition thì phải join nhiều bằng cùng một lúc, chi phí thực hiện rất tốn kém hoặc thực hiện tối ưu truy vấn bằng cách lọc dần ra các bản ghi theo điều kiện nhưng cũng gây traffic network.
   * Một service lưu trữ dữ liệu không có nghĩa service ấy nên thực hiện query. Mỗi service chỉ nên đảm nhiệm một chức năng duy nhất, một số query yêu cầu có database hỗ trợ lưu trữ một số kiểu dữ liệu đặc biệt như geo,...
+![CQRS](png/CQRS.png)
 - Cấu trúc của CQRS pattern:
   * Phân tách data model và module thành 2 phần: commmand và queries:
     * Phần command đảm nhiệm thực hiện các thao tác lên database như CUD.
@@ -278,3 +279,12 @@
   * Bên command sẽ thực hiện publish các event bên phía query để đảm bảo dữ liệu được up-to-date.
   * Phía query thực hiện các queries phức tạp hơn. Database phục vụ cho queries có thể có một số đặc điểm đặc thù để phù hợp cho query với một số kiểu dữ liệu.
   * Phía query đồng thời cũng nhận các event của bên phía command và thực hiện update.
+![service_query](png/service_query.png)
+- Không chỉ apply pattern này vào 1 service, mà ta có thể tạo một service độc lập chỉ phục vụ query áp dụng theo pattern CQRS. Các service có lưu trữ dữ liệu liên quan đến service query sẽ push event lên service query để update database. Service query cũng chỉ implement các query, được cài đặt database phục vụ cho một số mục đích như geo search, full-text search,...
+- Ưu điểm:
+  * Tối ưu hơn trong việc truy vấn: một số query nếu được implement bằng API Composition sẽ phải join nhiều bảng gây lãng phí tài nguyên tính toán, ngoài ra một só database hỗ trợ một số tính năng giúp query nhanh hơn.
+  * Giải quyết được vấn đề của event-souring: do event-store chỉ hỗ trợ query đơn giản, CQRS khắc phục yếu điểm của event-source nên 2 pattern này thường đi với nhau.
+  * Phân tách được vai trò command và query: domain model sẽ không phải gánh 2 trách nghiệm command và queries, thay vào đó CQRS sẽ phân chia command riêng, query riêng giúp code dễ maintain hơn. Ngoài ra, việc define service lưu trữ dữ liệu và service query giúp đảm bảo tính chất một service chỉ nên thực hiện một nhiệm vụ.
+- Nhược điểm:
+  * Tăng độ phức tạp của hệ thống: implement publish/subscribe, bảo trì nhiều database hơn, các database phục vụ query có thể không giống database sử dụng command.
+  * Replication lag: khi thực hiện lập command trước mà lập tức query, có khả năng người dùng sẽ thấy version dữ liệu trước, không phải dữ liệu mới được update. Một cách giải quyết là thông báo cho người dùng về việc dữ liệu này là dữ liệu cũ, có thể thử lại cho đến khi thấy được dữ liệu mới.
