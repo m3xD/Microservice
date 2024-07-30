@@ -188,7 +188,9 @@
 
 ## 4. API Gateway:
 ### 4.1. Vấn đề cách gọi API ứng dụng monolithic sang microservice:
-()
+- Trải nghiệm không tốt do client phải gửi request lên service nhiều: môi trường mạng thực tế có latency cao gấp 100 lần so với mạng LAN nội bộ, ngoài ra việc gửi request còn gây hao phí tài nguyên.
+- Sự thay đổi của endpoint API có thể gây ảnh hưởng tới các client chưa được cập nhật.
+- Service có thể sử dụng các IPC không quen thuộc, ví dụ client hay sử dụng REST nhưng service lại sử dụng gRPC.
 ### 4.2. API Gateway pattern:
 - API Gateway là entry point cho các request ở ngoài môi trường mạng. Nó đảm nhiệm việc routing, API Compositing, một số edge function như authentication.
 #### 4.2.1. Tổng quan chức năng của API Gateway:
@@ -288,3 +290,13 @@
 - Nhược điểm:
   * Tăng độ phức tạp của hệ thống: implement publish/subscribe, bảo trì nhiều database hơn, các database phục vụ query có thể không giống database sử dụng command.
   * Replication lag: khi thực hiện lập command trước mà lập tức query, có khả năng người dùng sẽ thấy version dữ liệu trước, không phải dữ liệu mới được update. Một cách giải quyết là thông báo cho người dùng về việc dữ liệu này là dữ liệu cũ, có thể thử lại cho đến khi thấy được dữ liệu mới.
+
+## 7. Configuration management:
+- Một service thường chứa 2 thành phần:
+  * Infrastructure: service registry, database,...
+  * 3-rd party service: mail, log, health,....
+- Vấn đề:
+  * Service cần phải biết kết nối đến các thành phần.
+  * Service phải chạy được nhiều môi trường không cần phải sửa đổi image.
+- Giải pháp:
+  * Tách biệt config và source code, khi thực hiện chạy service, truyền vào config tuỳ thuộc vào môi trường dev.
