@@ -293,7 +293,7 @@
 ## 5.3. Event sourcing:
 ### 5.3.1. Khái niệm:
 - Aggregates: là tập hợp các đối tượng nhất quán về mặt dữ liệu.
-- Aggregates root: là đối tượng  chính trong aggregate, chịu trách nhiệm duy trì tính nhất quán của toàn bộ aggregate. Thao tác tới aggregates phải thông qua aggreagates root.
+- Aggregates root: là đối tượng chính trong aggregate, chịu trách nhiệm duy trì tính nhất quán của toàn bộ aggregate. Thao tác tới aggregates phải thông qua aggreagates root.
 - Event sourcing là một cách để cấu trúc logic nghiệp vụ và lưu trữ các aggregates.
 - Thông thường ở các hệ thống truyền thống, event cũ sẽ bị ghi đè bởi event mới.
 - Event-sourcing: hệ thống lưu trữ tất cả các event đã xảy ra tính đến thời điểm hiện tại. Mỗi event đại diện cho sự thay đổi trạng thái của đữ liệu
@@ -306,8 +306,52 @@
   * Không có lưu trữ lịch sử của aggregate: chỉ lưu trữ trạng thái hiện thời của aggregate.
   * Implement audit, logging phức tạp và có thể xảy ra lỗi.
   * Phải tự implement logic publish event có thể không nhất quán, đồng bộ với logic nghiệp vụ.
-### 5.3.3. Giải pháp:
-- 
+### 5.3.3. Các thao tác:
+- Sử dụng event sourcing, lưu trữ các bản ghi thành một chuỗi các event được lưu trong CSDL, được gọi là event store.
+- Khi thực hiện cập nhật, tạo một aggregates, thực hiện insert các event do aggregates phát sinh vào bảng `event`.
+- Cấu trúc cơ bản của bảng event bao gồm:
+  * Event_ID.
+  * Event type.
+  * Entity type.
+  * Entity ID.
+  * Event_data.
+- Ứng dụng có thể replaying aggregates bằng các thao tác:
+  * Load các event từ aggregates.
+  * Tạo instance aggregates.
+  * Duyệt qua list event, áp dụng event vào aggregates vừa tạo.
+- Mỗi event phải chứa data cần thiết để chuyển từ trạng thái này sang trạng thái kế tiếp.
+- Thao tác tạo aggregates bao gồm:
+  * Khởi tạo aggregate root.
+  * Tạo một event mới.
+  * Thực hiện apply event vào aggregate mới tạo.
+  * Lưu và đẩy event vào event store.
+- Thao tác cập nhật aggregates bao gồm:
+  * Load event từ event store.
+  * Khởi tạo aggregate root.
+  * Thực hiện apply event aggregate vừa tạo.
+  * Khởi tạo event mới.
+  * Update aggregate bằng cách load các event mới.
+  * Lưu và đẩy event vào event store.
+### 5.3.4. Xử lý cập nhật đồng thời:
+- Sử dụng **optimistic locking** để kiểm tra xem aggregate đã thay đổi từ lần đọc gần nhất hay chưa.
+- Cứ mỗi lần aggregate update thì version lại tăng thêm một.
+- Update chỉ thành công khi version không thay đổi kể từ thời điểm ứng dụng đọc aggregate.
+### 5.3.5. Polling event từ event store:
+- Ta có thể lấy các event từ bảng `EVENT` bằng cách sử dụng SQL để query.
+- Ta cần query các event mới dẫn tới vấn đề nếu có 2 transaction cùng add event thì thời điểm commit ID có thể sai khác.
+- Ta cần thêm trạng thái `published` cho từng event, khi xử lý xong cần mark lại.
+### 5.3.6. Snapshot:
+- Về lâu dài số lượng event sẽ tăng lên rất nhiều.
+- Các application sẽ chỉ sử dụng snapshot để load lại các event.
+### 5.3.7. Ưu và nhược điểm:
+- Ưu điểm:
+  *Khả năng publish event: khi các state của aggregate thay đổi thì các event được publish. Ngoài ra event có thể log được thông tin người dùng thực hiện thay đổi, cung cấp khả năng audit log, phục vụ nhiều mục đích như monitor,..
+  * Lưu trữ lịch sử của aggregates: ta có thể tái hiện lại trạng thái trong quá khứ của aggregate.
+  * Cấu trúc của event đơn giản, dễ dàng lưu trữ dữ liệu.
+- Nhược điểm:
+  * Khó khăn do không phải thói quen lập trình thường thấy.
+  * Event có thể càng ngày càng lớn (có thể sử dụng snapshot).
+  * Query trở nên khó khăn hơn (áp dụng CQRS để xử lý).
 
 ## 6. Configuration management:
 - Một service thường chứa 2 thành phần:
