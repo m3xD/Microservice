@@ -25,7 +25,7 @@
   * Chiều Z: giống chiều X, nhưng các **instance** lại đảm nhận lưu trữ một tập dữ liệu theo một đặc điểm nào nó như **userID**.
     ![Z_Scale](png/scale_y.png)
     
-    -> Scale theo 2 chiều X và Z đều giúp đảm bảo khả năng sẵn có cũng như dung lượng nhưng không giải quyết được bài toán phát triển mở rộng hay code base quá phức tạp, và chúng ta có thêm scale chiều Z.
+    -> Scale theo 2 chiều X và Z đều giúp đảm bảo khả năng sẵn có cũng như dung lượng nhưng không giải quyết được bài toán phát triển mở rộng hay code base quá phức tạp, và chúng ta có thêm scale chiều Y.
   * Chiều Y: được định nghĩa là phân bố **monolithic** thành các **services**, các **services** được định nghĩa là các ứng dụng nhỏ hơn của ứng dụng tổng thể, các service có thể được scale theo chiều X và có thể là cả chiều Y.
     ![Y_Scale](png/scale_z.png)
 - Lợi ích của việc sử dụng kiến trúc microservice:
@@ -290,8 +290,26 @@
 - Nhược điểm:
   * Tăng độ phức tạp của hệ thống: implement publish/subscribe, bảo trì nhiều database hơn, các database phục vụ query có thể không giống database sử dụng command.
   * Replication lag: khi thực hiện lập command trước mà lập tức query, có khả năng người dùng sẽ thấy version dữ liệu trước, không phải dữ liệu mới được update. Một cách giải quyết là thông báo cho người dùng về việc dữ liệu này là dữ liệu cũ, có thể thử lại cho đến khi thấy được dữ liệu mới.
+## 5.3. Event sourcing:
+### 5.3.1. Khái niệm:
+- Aggregates: là tập hợp các đối tượng nhất quán về mặt dữ liệu.
+- Aggregates root: là đối tượng  chính trong aggregate, chịu trách nhiệm duy trì tính nhất quán của toàn bộ aggregate. Thao tác tới aggregates phải thông qua aggreagates root.
+- Event sourcing là một cách để cấu trúc logic nghiệp vụ và lưu trữ các aggregates.
+- Thông thường ở các hệ thống truyền thống, event cũ sẽ bị ghi đè bởi event mới.
+- Event-sourcing: hệ thống lưu trữ tất cả các event đã xảy ra tính đến thời điểm hiện tại. Mỗi event đại diện cho sự thay đổi trạng thái của đữ liệu
+- Nó lưu trữ aggregates dưới dạng các event và tạo thành một chuỗi event.
+- Ứng dụng có thể tái hiện lại trạng thái hiện thời bằng cách phát lại các event.
+### 5.3.2. Vấn đề ở hệ thống lưu trữ event truyền thống:
+- Các class trong app được ánh xạ(map) tới các bảng trong CSDL. Giả sử lớp `Order` sẽ được map tới bảng `ORDER` trong CSDL.
+- Hạn chế:
+  * Có sự khác biệt giữa đối tượng được define và đối tượng được lưu trữ trong CSDL: class có thể được define phức tạp nhưng CSDL yêu cầu phải lưu trữ một cách đơn giản.
+  * Không có lưu trữ lịch sử của aggregate: chỉ lưu trữ trạng thái hiện thời của aggregate.
+  * Implement audit, logging phức tạp và có thể xảy ra lỗi.
+  * Phải tự implement logic publish event có thể không nhất quán, đồng bộ với logic nghiệp vụ.
+### 5.3.3. Giải pháp:
+- 
 
-## 7. Configuration management:
+## 6. Configuration management:
 - Một service thường chứa 2 thành phần:
   * Infrastructure: service registry, database,...
   * 3-rd party service: mail, log, health,....
